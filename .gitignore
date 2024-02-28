@@ -1,0 +1,9 @@
+wandb
+__pycache__
+checkpoints
+data
+*logs
+*.jpg
+*.png
+*.7z
+*.ipynb
