@@ -183,8 +183,10 @@ class TestDataset(Dataset):
         img = cv2.imread(self.image_list[idx],
                          cv2.IMREAD_UNCHANGED).astype(np.float32)
         shape = img.shape
-        img /= 4096
+        img -= 256
+        img /= (4095 - 256)
         img = torch.from_numpy(img)
+        img = torch.clamp(img, 0, 1)
         img = pack_raw(img)
         if self.patchify:
             img = patchify(img, 512)
