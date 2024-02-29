@@ -48,8 +48,8 @@ ccm = np.array([[1.06835938, -0.29882812, -0.14257812],
 
 
 def main():
-    raw_dir = './test_outputs/'
-    out_dir = './test_outputs_awb/'
+    raw_dir = './test_outputs_50_resized/'
+    out_dir = './test_outputs_50_resized_awb/'
     os.makedirs(out_dir, exist_ok=True)
     img_list = glob.glob(os.path.join(raw_dir, '*.png'))
     for img_path in tqdm.tqdm(img_list):
@@ -57,7 +57,7 @@ def main():
         img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED).astype(np.float32) / 65535.0
         img = simple_demosaic(img)
         img = grey_world(img)
-        img = img ** (1/2.2)
+        # img = img ** (1/2.2)
         img *= 65535.0
         img = np.clip(img, 0, 65535)
         cv2.imwrite(os.path.join(out_dir, basename), img.astype(np.uint16))

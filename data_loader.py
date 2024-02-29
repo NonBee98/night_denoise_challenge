@@ -1,11 +1,12 @@
 import glob
+import math
 import os
 
-import torch
-from torch.utils.data import Dataset
-import numpy as np
 import cv2
-import math
+import numpy as np
+import torch
+import torchvision.transforms.functional as TF
+from torch.utils.data import Dataset
 
 
 def pack_raw(im: torch.Tensor) -> torch.Tensor:
@@ -26,7 +27,7 @@ def depack_raw(im: torch.Tensor) -> torch.Tensor:
     img_shape = im.shape
     H = img_shape[0]
     W = img_shape[1]
-    output = torch.zeros((H * 2, W * 2))
+    output = torch.zeros((H * 2, W * 2), dtype=im.dtype)
     img_shape = output.shape
     H = img_shape[0]
     W = img_shape[1]
@@ -163,7 +164,7 @@ class NoiseDataset(Dataset):
 
 
 class TestDataset(Dataset):
-    def __init__(self, dir_path: str, patchify=True) -> None:
+    def __init__(self, dir_path: str, patchify=True, down_sample_rate=1) -> None:
         super().__init__()
         support_ext = ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']
         self.image_list = glob.glob(os.path.join(dir_path, "*"))
@@ -172,6 +173,7 @@ class TestDataset(Dataset):
                    self.image_list))
         self.basename_list = [os.path.basename(x) for x in self.image_list]
         self.patchify = patchify
+        self.down_sample_rate = down_sample_rate
 
     def __len__(self):
         return len(self.image_list)
@@ -182,7 +184,7 @@ class TestDataset(Dataset):
     def __getitem__(self, idx):
         img = cv2.imread(self.image_list[idx],
                          cv2.IMREAD_UNCHANGED).astype(np.float32)
-        shape = img.shape
+        shape = np.array(img.shape) // self.down_sample_rate
         img -= 256
         img /= (4095 - 256)
         img = torch.from_numpy(img)
@@ -193,4 +195,8 @@ class TestDataset(Dataset):
             img = img.permute(0, 3, 1, 2)
         else:
             img = img.permute(2, 0, 1)
+        if self.down_sample_rate > 1:
+            h = img.shape[-2] // self.down_sample_rate
+            w = img.shape[-1] // self.down_sample_rate
+            img = TF.resize(img, size=(h, w), interpolation=TF.InterpolationMode.NEAREST, antialias=True)
         return img, shape

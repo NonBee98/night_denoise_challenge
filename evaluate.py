@@ -1,4 +1,3 @@
-import lightning as L
 import torch
 import torch.nn as nn
 import tqdm
@@ -21,8 +20,10 @@ class ModelEncaupsulation(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-    
-def compute_exposure_ratio_by_hist(img: Tensor, target_luminance: float) -> float:
+
+
+def compute_exposure_ratio_by_hist(img: Tensor,
+                                   target_luminance: float) -> float:
     """
     Compute the exposure ratio by histogram equalization.
     Args:
@@ -31,16 +32,22 @@ def compute_exposure_ratio_by_hist(img: Tensor, target_luminance: float) -> floa
     Returns:
         exposure_ratio: the exposure ratio to achieve the target luminance
     """
-    h = img.shape[1]
-    w = img.shape[2]
-    target_img_size = 64
+    img = img.permute(1, 2, 0)
+    img = depack_raw(img)
+    h = img.shape[0]
+    w = img.shape[1]
+    target_img_size = 256
     h_step = h // target_img_size
     w_step = w // target_img_size
-    down_sampled_image = img[:, ::h_step, ::w_step] * 255
-    down_sampled_image_hist_equalized = equalize(down_sampled_image.to(torch.uint8))
+    down_sampled_image = img[::h_step, ::w_step] * 255
+    down_sampled_image = down_sampled_image.unsqueeze(0)
+    down_sampled_image_hist_equalized = equalize(
+        down_sampled_image.to(torch.uint8)).float()
     mean = down_sampled_image_hist_equalized.mean() / 255
-    return target_luminance / mean
-    
+    print(img.mean(), mean, target_luminance)
+    ret = target_luminance / mean
+
+    return ret
 
 
 def main():
@@ -55,13 +62,13 @@ def main():
     bit_depth = 16
     save_type = np.uint8 if bit_depth == 8 else np.uint16
 
-    save_dir = './test_outputs_{}'.format(luminance_level)
+    save_dir = './test_outputs_{}_resized'.format(luminance_level)
     nosiy_save_dir = './test_inputs'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(nosiy_save_dir, exist_ok=True)
 
     patchify = False
-    test_dataset = TestDataset('./test_image/', patchify=patchify)
+    test_dataset = TestDataset('./test_image/', patchify=patchify, down_sample_rate=4)
     len_data = len(test_dataset)
     for i in tqdm.tqdm(range(len_data)):
         data, shape = test_dataset[i]
